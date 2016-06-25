@@ -1,0 +1,94 @@
+<html>
+<head>
+<title>Canvas Test</title>
+</head>
+
+<body>
+<canvas id="graph" width="2000" height="50" style="border: 1px solid black; width: 100%; height: 50px;"></canvas>
+<script>
+
+var values = function() {
+	var arr = [], size = 2000;
+	while( size -- ) { arr.push( 0 ); }
+	return arr;
+}();
+
+var lastValue = 0;
+function addValue( value ) {
+	lastValue = ( lastValue + 1 ) % values.length;
+	values[lastValue] = value;
+}
+
+function getRange( items ) {
+	if( items.length == 0 ) {
+		return function( val ) { return val; }
+	}
+	var min = items[0], max = items[0];
+	items.forEach( function(value) { min = Math.min( min, value ); max = Math.max( max, value ) } );
+	var range = max - min;
+	if( range == 0 ) { range = 1;}
+	return function( val ) {
+		return (val - min)/range;
+	};
+}
+
+var canvas = document.getElementById( "graph" );
+var context = canvas.getContext( "2d" );
+context.scale(1,-canvas.height);
+context.translate(0,-1);
+
+function refresh( time ) {
+	var range = getRange( values );
+	context.clearRect( 0, 0, canvas.width, 1 );
+	context.fillStyle = "#FF0000";
+	for( var i=0; i<values.length; i++ ) {
+		var rollingIndex = (i + lastValue + 1) % values.length;
+		context.fillRect( i, 0, 1, range( values[ rollingIndex ] ) );
+	}
+	window.requestAnimationFrame(refresh);
+}
+window.requestAnimationFrame(refresh);
+
+
+var audioContext = new AudioContext();
+var scripter = audioContext.createScriptProcessor(256, 1, 1);
+scripter.onaudioprocess = function(evt) {
+  //var outputBuffer = evt.outputBuffer;
+  var inputBuffer = evt.inputBuffer;
+  var data = inputBuffer.getChannelData(0);
+  var max = data[0];
+  data.forEach(function(item) {
+    if( item ) { addValue(item); }
+    //max = Math.max( max, item );
+  });
+  //addValue(max);
+  //console.log(max);
+};
+scripter.connect(audioContext.destination);
+
+navigator.getUserMedia = navigator.getUserMedia || navigator.webkitGetUserMedia || navigator.mozGetUserMedia || navigator.msGetUserMedia;
+navigator.getUserMedia({audio:{echoCancellation:false}}, function(stream) {
+    window.test = stream;
+    var mic = audioContext.createMediaStreamSource(stream);
+    mic.connect(scripter);
+  },
+  function(err) { console.log({err:err}); }
+);
+
+/*
+void function() {
+	var mouseX = 0;
+	var mouseY = 0;
+	document.onmousemove = function(e){
+			mouseX = e.pageX;
+			mouseY = e.pageY;
+	}
+
+	setInterval( function() {
+		addValue( mouseX );
+	}, 5 );
+}();
+*/
+</script>
+</body>
+</html>
